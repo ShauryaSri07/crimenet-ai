@@ -28,9 +28,9 @@ export default function RelationshipExplorerPage() {
     <AppLayout>
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Relationship Explorer</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Explore and filter entity relationships
+          <h1 className="text-lg font-semibold text-white">Relationships</h1>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Browse and filter entity relationships
           </p>
         </div>
 

@@ -20,9 +20,9 @@ export default function AuditLogsPage() {
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Audit Logs</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            System activity trail and change history
+          <h1 className="text-lg font-semibold text-white">Audit Log</h1>
+          <p className="text-xs text-gray-600 mt-0.5">
+            System activity and change history
           </p>
         </div>
 

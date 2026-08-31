@@ -59,9 +59,9 @@ export default function PatternDetectionPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Pattern Detection</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Detect suspicious patterns in criminal networks
+            <h1 className="text-lg font-semibold text-white">Patterns</h1>
+            <p className="text-xs text-gray-600 mt-0.5">
+              Suspicious pattern detection across network data
             </p>
           </div>
           <div className="flex items-center gap-3">

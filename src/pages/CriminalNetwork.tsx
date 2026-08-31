@@ -71,9 +71,9 @@ export default function CriminalNetworkPage() {
       <div className="space-y-4 max-w-[1600px] mx-auto">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Criminal Network</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Interactive network graph visualization
+            <h1 className="text-lg font-semibold text-white">Network</h1>
+            <p className="text-xs text-gray-600 mt-0.5">
+              Interactive visualization of criminal relationships
             </p>
           </div>
           <select
@@ -168,13 +168,11 @@ export default function CriminalNetworkPage() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-32 text-center">
-            <Network className="w-16 h-16 text-gray-700 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-400">
+            <Network className="w-16 h-16 text-gray-700 mb-4" />                <h3 className="text-sm font-semibold text-gray-400">
               Select an Investigation
             </h3>
-            <p className="text-sm text-gray-600 mt-2 max-w-sm">
-              Choose an investigation from the dropdown above to view its criminal
-              network graph
+            <p className="text-xs text-gray-600 mt-1 max-w-xs">
+              Choose an investigation to view its network
             </p>
           </div>
         )}
