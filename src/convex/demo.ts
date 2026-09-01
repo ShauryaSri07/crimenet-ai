@@ -6,8 +6,8 @@ import { query, mutation } from "./_generated/server";
 export const clearAll = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    //const userId = await getAuthUserId(ctx);
+    //if (!userId) throw new Error("Not authenticated");
 
     // Delete all data in order (respecting foreign keys)
     const collections = [
