@@ -49,6 +49,17 @@ export const create = mutation({
 export const detectPatterns = mutation({
   args: { investigationId: v.id("investigations") },
   handler: async (ctx, args) => {
+    // Clear existing patterns for this investigation to avoid duplicates
+    const existingPatterns = await ctx.db
+      .query("patterns")
+      .withIndex("by_investigation", (q) =>
+        q.eq("investigationId", args.investigationId)
+      )
+      .collect();
+    for (const p of existingPatterns) {
+      await ctx.db.delete(p._id);
+    }
+
     const entities = await ctx.db
       .query("entities")
       .withIndex("by_investigation", (q) =>

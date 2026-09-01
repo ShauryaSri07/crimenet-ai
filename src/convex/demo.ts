@@ -42,6 +42,17 @@ export const loadDemoData = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Check if demo data already exists
+    const existing = await ctx.db.query("investigations").first();
+    if (existing) {
+      return {
+        investigations: 0,
+        totalEntities: 0,
+        totalRelationships: 0,
+        message: "Demo data already loaded",
+      };
+    }
+
     const now = Date.now();
 
     // Helper for creating an investigation with its own small network

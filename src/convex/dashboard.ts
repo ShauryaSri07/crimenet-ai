@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from "convex/values";
 import { query } from "./_generated/server";
 
 export const stats = query({
@@ -151,5 +152,3 @@ export const timelineData = query({
     return timeline;
   },
 });
-
-import { v } from "convex/values";

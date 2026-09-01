@@ -212,15 +212,17 @@ export default function InvestigationDetailPage() {
           )}
 
           {activeTab === "network" && graphData && (
-            <div className="bg-[#0f1520] border border-white/[0.06] rounded-xl overflow-hidden" style={{ height: "500px" }}>
-              {graphData.nodes.length > 0 ? (
-                <NetworkGraph nodes={graphData.nodes} edges={graphData.edges} />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                  <Network className="w-10 h-10 mb-3 text-gray-600" />
-                  <p className="text-sm">No network data available</p>
-                </div>
-              )}
+            <div className="bg-[#0f1520] border border-white/[0.06] rounded-xl overflow-hidden p-1">
+              <div className="rounded-lg overflow-hidden" style={{ height: "500px" }}>
+                {graphData.nodes.length > 0 ? (
+                  <NetworkGraph nodes={graphData.nodes} edges={graphData.edges} height="500px" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    <Network className="w-10 h-10 mb-3 text-gray-600" />
+                    <p className="text-sm">No network data available</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

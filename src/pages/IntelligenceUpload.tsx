@@ -57,6 +57,15 @@ export default function IntelligenceUploadPage() {
         return;
       }
 
+      if (entityResult.entities.length === 0) {
+        await markProcessed({ id: docId });
+        setStatus("error");
+        setResult(
+          "The AI did not extract any entities from this text. The document has been saved — try rephrasing or providing more detail."
+        );
+        return;
+      }
+
       const entityIds = await createEntities({
         entities: entityResult.entities.map((e: any) => ({
           ...e,

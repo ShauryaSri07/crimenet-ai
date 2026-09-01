@@ -141,11 +141,22 @@ export const search = query({
     } else {
       rels = await ctx.db.query("relationships").collect();
     }
-    return rels.filter(
-      (r) =>
-        r.relationshipType.toLowerCase().includes(q) ||
-        r.sourceId === q ||
-        r.targetId === q
-    );
+
+    // Resolve entity names for matching
+    const matched: typeof rels = [];
+    for (const r of rels) {
+      if (r.relationshipType.toLowerCase().includes(q)) {
+        matched.push(r);
+        continue;
+      }
+      const source = await ctx.db.get(r.sourceId);
+      const target = await ctx.db.get(r.targetId);
+      const sourceName = source?.name?.toLowerCase() || "";
+      const targetName = target?.name?.toLowerCase() || "";
+      if (sourceName.includes(q) || targetName.includes(q)) {
+        matched.push(r);
+      }
+    }
+    return matched;
   },
 });

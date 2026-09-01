@@ -270,17 +270,18 @@ export const computeMetrics = action({
         0.2 * (pageRank[node.id] / maxPR);
     }
 
-    // Store metrics
+    // Store metrics (fetch existing metrics once, not per node)
     const now = Date.now();
+    const existingMetrics = await ctx.runQuery(
+      ("./network" as any).getMetrics,
+      { investigationId: args.investigationId }
+    );
+    const existingByEntity = new Map< string, { _id: string; entityId: string }>(
+      existingMetrics.map((m: any) => [m.entityId, m])
+    );
+
     for (const node of nodes) {
-      // Check if metric already exists
-      const existing = await ctx.runQuery(
-        ("./network" as any).getMetrics,
-        { investigationId: args.investigationId }
-      );
-      const existingMetric = existing.find(
-        (m: any) => m.entityId === node.id
-      );
+      const existingMetric = existingByEntity.get(node.id);
 
       const metricData = {
         investigationId: args.investigationId,
