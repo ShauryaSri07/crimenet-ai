@@ -102,7 +102,6 @@ export const search = query({
   },
   handler: async (ctx, args) => {
     const q = args.query.toLowerCase().trim();
-    if (!q) return [];
 
     let allEntities;
     if (args.investigationId) {
@@ -115,6 +114,9 @@ export const search = query({
     } else {
       allEntities = await ctx.db.query("entities").collect();
     }
+
+    // Return all entities when no search term is provided
+    if (!q) return allEntities;
 
     return allEntities.filter(
       (e) =>
