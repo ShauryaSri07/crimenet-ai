@@ -39,6 +39,16 @@ interface NetworkGraphProps {
   height?: string;
 }
 
+// Pre-compute connection counts outside Cytoscape style functions
+function buildConnectionMap(edges: GraphEdge[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const e of edges) {
+    counts.set(e.source, (counts.get(e.source) || 0) + 1);
+    counts.set(e.target, (counts.get(e.target) || 0) + 1);
+  }
+  return counts;
+}
+
 const TYPE_COLORS: Record<string, string> = {
   person: "#22d3ee",
   organization: "#a78bfa",
@@ -71,192 +81,229 @@ export function NetworkGraph({
   const [nodeConnections, setNodeConnections] = useState(0);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const elements: cytoscape.ElementDefinition[] = [
-      ...nodes.map((n) => ({
-        data: {
-          id: n.id,
-          label: n.label,
-          type: n.type,
-          confidence: n.confidence,
-          alias: n.alias,
-          city: n.city,
-          phone: n.phone,
-          registrationNumber: n.registrationNumber,
-        },
-        classes: `type-${n.type}`,
-      })),
-      ...edges.map((e) => ({
-        data: {
-          id: e.id,
-          source: e.source,
-          target: e.target,
-          label: e.label,
-          confidence: e.confidence,
-        },
-      })),
-    ];
+    // Wait for the container to have valid dimensions before initializing
+    let cancelled = false;
+    let cy: cytoscape.Core | null = null;
 
-    const cy = cytoscape({
-      container: containerRef.current,
-      elements,
-      minZoom: 0.1,
-      maxZoom: 4,
-      wheelSensitivity: 0.3,
-      style: [
-        {
-          selector: "node",
-          style: {
-            label: "data(label)",
-            "background-color": (ele: any) =>
-              TYPE_COLORS[ele.data("type")] || "#64748b",
-            color: "#e2e8f0",
-            "font-size": "11px",
-            "font-weight": "500",
-            "text-outline-color": "#080c14",
-            "text-outline-width": 2,
-            width: (ele: any) => {
-              const connections = edges.filter(
-                (e) =>
-                  e.source === ele.data("id") || e.target === ele.data("id")
-              ).length;
-              return Math.max(20, 14 + connections * 4);
-            },
-            height: (ele: any) => {
-              const connections = edges.filter(
-                (e) =>
-                  e.source === ele.data("id") || e.target === ele.data("id")
-              ).length;
-              return Math.max(20, 14 + connections * 4);
-            },
-            "border-width": 2,
-            "border-color": (ele: any) => {
-              const c = TYPE_COLORS[ele.data("type")] || "#64748b";
-              return c;
-            },
-            "border-opacity": 0.5,
-            "text-valign": "bottom",
-            "text-margin-y": 6,
-          } as any,
-        },
-        {
-          selector: "edge",
-          style: {
-            width: 1.5,
-            label: "data(label)",
-            "font-size": "9px",
-            color: "#64748b",
-            "text-outline-color": "#080c14",
-            "text-outline-width": 1.5,
-            "text-rotation": "autorotate",
-            "text-margin-y": -8,
-            "line-color": "#334155",
-            "target-arrow-color": "#334155",
-            "target-arrow-shape": "triangle",
-            "curve-style": "bezier",
-            "arrow-scale": 0.8,
-          } as any,
-        },
-        {
-          selector: "node:selected",
-          style: {
-            "border-width": 3,
-            "border-color": "#22d3ee",
-            "border-opacity": 1,
-            "background-color": "#22d3ee",
-            "font-size": "12px",
-            "font-weight": "700",
-          } as any,
-        },
-        {
-          selector: "node.highlighted",
-          style: {
-            "border-width": 3,
-            "border-color": "#22d3ee",
-            "border-opacity": 1,
-            "font-weight": "700",
-          } as any,
-        },
-        {
-          selector: "edge.highlighted",
-          style: {
-            "line-color": "#22d3ee",
-            width: 3,
-            "target-arrow-color": "#22d3ee",
-          } as any,
-        },
-        {
-          selector: "node.faded",
-          style: {
-            opacity: 0.2,
+    const connectionCounts = buildConnectionMap(edges);
+
+    const initGraph = () => {
+      if (cancelled || !container || container.offsetWidth === 0 || container.offsetHeight === 0) return;
+
+      // Destroy any previous instance
+      if (cyRef.current) {
+        cyRef.current.destroy();
+        cyRef.current = null;
+      }
+
+      const elements: cytoscape.ElementDefinition[] = [
+        ...nodes.map((n) => ({
+          data: {
+            id: n.id,
+            label: n.label,
+            type: n.type,
+            confidence: n.confidence,
+            alias: n.alias,
+            city: n.city,
+            phone: n.phone,
+            registrationNumber: n.registrationNumber,
           },
-        },
-        {
-          selector: "edge.faded",
-          style: {
-            opacity: 0.1,
+          classes: `type-${n.type}`,
+        })),
+        ...edges.map((e) => ({
+          data: {
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            label: e.label,
+            confidence: e.confidence,
           },
-        },
-      ],
-      layout: {
-        name: "cose",
-        idealEdgeLength: 150,
-        nodeOverlap: 30,
-        refresh: 20,
-        randomize: false,
-        componentSpacing: 80,
-        nodeRepulsion: 6000,
-        edgeElasticity: 200,
-        nestingFactor: 1.2,
-        gravity: 0.25,
-        numIter: 1500,
-        animate: true,
-        animationDuration: 800,
-      } as any,
-    });
+        })),
+      ];
 
-    cyRef.current = cy;
-
-    // Node click handler
-    cy.on("tap", "node", (evt) => {
-      const node = evt.target;
-      const data = node.data();
-      const conns = edges.filter(
-        (e) => e.source === data.id || e.target === data.id
-      ).length;
-      setSelectedNode({
-        id: data.id,
-        label: data.label,
-        type: data.type,
-        confidence: data.confidence,
-        alias: data.alias,
-        city: data.city,
-        phone: data.phone,
-        registrationNumber: data.registrationNumber,
+      cy = cytoscape({
+        container,
+        elements,
+        minZoom: 0.1,
+        maxZoom: 4,
+        wheelSensitivity: 0.3,
+        style: [
+          {
+            selector: "node",
+            style: {
+              label: "data(label)",
+              "background-color": (ele: any) =>
+                TYPE_COLORS[ele.data("type")] || "#64748b",
+              color: "#e2e8f0",
+              "font-size": "11px",
+              "font-weight": "500",
+              "text-outline-color": "#080c14",
+              "text-outline-width": 2,
+              width: (ele: any) => {
+                const count = connectionCounts.get(ele.data("id")) || 0;
+                return Math.max(20, 14 + count * 4);
+              },
+              height: (ele: any) => {
+                const count = connectionCounts.get(ele.data("id")) || 0;
+                return Math.max(20, 14 + count * 4);
+              },
+              "border-width": 2,
+              "border-color": (ele: any) => {
+                return TYPE_COLORS[ele.data("type")] || "#64748b";
+              },
+              "border-opacity": 0.5,
+              "text-valign": "bottom",
+              "text-margin-y": 6,
+            } as any,
+          },
+          {
+            selector: "edge",
+            style: {
+              width: 1.5,
+              label: "data(label)",
+              "font-size": "9px",
+              color: "#64748b",
+              "text-outline-color": "#080c14",
+              "text-outline-width": 1.5,
+              "text-rotation": "autorotate",
+              "text-margin-y": -8,
+              "line-color": "#334155",
+              "target-arrow-color": "#334155",
+              "target-arrow-shape": "triangle",
+              "curve-style": "bezier",
+              "arrow-scale": 0.8,
+            } as any,
+          },
+          {
+            selector: "node:selected",
+            style: {
+              "border-width": 3,
+              "border-color": "#22d3ee",
+              "border-opacity": 1,
+              "background-color": "#22d3ee",
+              "font-size": "12px",
+              "font-weight": "700",
+            } as any,
+          },
+          {
+            selector: "node.highlighted",
+            style: {
+              "border-width": 3,
+              "border-color": "#22d3ee",
+              "border-opacity": 1,
+              "font-weight": "700",
+            } as any,
+          },
+          {
+            selector: "edge.highlighted",
+            style: {
+              "line-color": "#22d3ee",
+              width: 3,
+              "target-arrow-color": "#22d3ee",
+            } as any,
+          },
+          {
+            selector: "node.faded",
+            style: {
+              opacity: 0.2,
+            },
+          },
+          {
+            selector: "edge.faded",
+            style: {
+              opacity: 0.1,
+            },
+          },
+        ],
+        layout: {
+          name: "cose",
+          idealEdgeLength: 150,
+          nodeOverlap: 30,
+          refresh: 20,
+          randomize: false,
+          componentSpacing: 80,
+          nodeRepulsion: 6000,
+          edgeElasticity: 200,
+          nestingFactor: 1.2,
+          gravity: 0.25,
+          numIter: 1500,
+          animate: true,
+          animationDuration: 800,
+        } as any,
       });
-      setNodeConnections(conns);
 
-      // Highlight connected nodes
-      cy.elements().removeClass("highlighted faded");
-      const neighborhood = node.closedNeighborhood();
-      neighborhood.addClass("highlighted");
-      cy.elements().not(neighborhood).addClass("faded");
+      if (cancelled) {
+        cy.destroy();
+        return;
+      }
 
-      onNodeSelect?.(data.id);
-    });
+      cyRef.current = cy;
 
-    // Background click - deselect
-    cy.on("tap", (evt) => {
-      if (evt.target === cy) {
-        cy.elements().removeClass("highlighted faded");
-        setSelectedNode(null);
+      // Node click handler
+      cy.on("tap", "node", (evt) => {
+        if (cancelled) return;
+        const node = evt.target;
+        const data = node.data();
+        const conns = connectionCounts.get(data.id) || 0;
+        setSelectedNode({
+          id: data.id,
+          label: data.label,
+          type: data.type,
+          confidence: data.confidence,
+          alias: data.alias,
+          city: data.city,
+          phone: data.phone,
+          registrationNumber: data.registrationNumber,
+        });
+        setNodeConnections(conns);
+
+        // Highlight connected nodes
+        cy!.elements().removeClass("highlighted faded");
+        const neighborhood = node.closedNeighborhood();
+        neighborhood.addClass("highlighted");
+        cy!.elements().not(neighborhood).addClass("faded");
+
+        onNodeSelect?.(data.id);
+      });
+
+      // Background click - deselect
+      cy.on("tap", (evt) => {
+        if (cancelled) return;
+        if (evt.target === cy) {
+          cy!.elements().removeClass("highlighted faded");
+          setSelectedNode(null);
+        }
+      });
+    };
+
+    // Use ResizeObserver to wait for valid dimensions
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          ro.disconnect();
+          initGraph();
+          break;
+        }
       }
     });
+    ro.observe(container);
+
+    // Also try immediate init in case dimensions are already valid
+    if (container.offsetWidth > 0 && container.offsetHeight > 0) {
+      ro.disconnect();
+      initGraph();
+    }
 
     return () => {
-      cy.destroy();
-      cyRef.current = null;
+      cancelled = true;
+      ro.disconnect();
+      if (cyRef.current) {
+        cyRef.current.destroy();
+        cyRef.current = null;
+      }
     };
   }, [nodes, edges, onNodeSelect]);
 
