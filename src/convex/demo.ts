@@ -32,447 +32,894 @@ export const clearAll = mutation({
 });
 
 // Load comprehensive synthetic demo dataset
+// Load synthetic demo dataset with multiple investigations
 export const loadDemoData = mutation({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
     const now = Date.now();
 
-    // Create demo investigation
-    const invId = await ctx.db.insert("investigations", {
-      title: "Operation Black Net — Interstate Smuggling Network",
-      description:
-        "Investigation into a criminal network operating across Lucknow, Kanpur, Noida, and Varanasi. Involves drug trafficking, money laundering, and organized crime. SYNTHETIC DEMO DATA — FOR DEMONSTRATION ONLY.",
-      status: "under_investigation",
-      priority: "high",
-      userId,
-      createdAt: now - 30 * 24 * 60 * 60 * 1000,
-      updatedAt: now,
-    });
+    // Helper for creating an investigation with its own small network
+    const createInvestigation = async ({
+      title,
+      description,
+      priority,
+      documentTitle,
+      documentContent,
+      entities,
+      relationships,
+    }: {
+      title: string;
+      description: string;
+      priority: string;
+      documentTitle: string;
+      documentContent: string;
+      entities: any[];
+      relationships: {
+        source: string;
+        target: string;
+        type: string;
+        confidence: number;
+      }[];
+    }) => {
+      // 1. Investigation
+      const investigationId = await ctx.db.insert("investigations", {
+        title,
+        description: `${description} SYNTHETIC DEMO DATA — FOR DEMONSTRATION ONLY.`,
+        status: "under_investigation",
+        priority: priority as "low" | "medium" | "high" | "critical",
+        userId,
+        createdAt: now - 30 * 24 * 60 * 60 * 1000,
+        updatedAt: now,
+      });
 
-    // Create a document
-    const docId = await ctx.db.insert("documents", {
-      title: "Intelligence Report — Op Black Net",
-      content:
-        "Amit Verma was observed communicating with Raj Malhotra using a phone number +91-9876543210. Raj has connections with XYZ Logistics and was repeatedly seen in Lucknow and Kanpur. Sanjay Mishra controls the Noida cell with help from Deepak Yadav. Vehicles UP32AB1234 and UP65CD5678 were used for transport.",
-      fileType: "text",
-      investigationId: invId,
-      userId,
-      processed: true,
-      createdAt: now - 25 * 24 * 60 * 60 * 1000,
-    });
-
-    const doc2Id = await ctx.db.insert("documents", {
-      title: "Surveillance Report — Varanasi Operations",
-      content:
-        "Surveillance indicates Ravi Tiwari meeting with Priya Verma at Lucknow Real Estate Group office. Pooja Gupta was seen with Arjun Patel in Kanpur. Nisha Saxena used phone +91-8877665544 for communications. Mohan Lal drove UP14EF9012 for deliveries.",
-      fileType: "text",
-      investigationId: invId,
-      userId,
-      processed: true,
-      createdAt: now - 20 * 24 * 60 * 60 * 1000,
-    });
-
-    // === PERSONS ===
-    const persons = [
-      {
-        name: "Vikram Singh",
-        alias: "Vicky",
-        description: "Key criminal, network leader",
-        phone: "+91-9876543210",
-        city: "Lucknow",
-      },
-      {
-        name: "Rajesh Kumar",
-        alias: "Raju",
-        description: "Senior associate, logistics coordinator",
-        phone: "+91-9123456789",
-        city: "Kanpur",
-      },
-      {
-        name: "Amit Sharma",
-        alias: undefined,
-        description: "Intermediary, connects multiple cells",
-        phone: "+91-9988776655",
-        city: "Noida",
-      },
-      {
-        name: "Sanjay Mishra",
-        alias: "Sanju",
-        description: "Noida cell controller",
-        phone: "+91-8877665544",
-        city: "Noida",
-      },
-      {
-        name: "Deepak Yadav",
-        alias: "DP",
-        description: "Enforcer, associate of Sanjay",
-        phone: "+91-7766554433",
-        city: "Noida",
-      },
-      {
-        name: "Ravi Tiwari",
-        alias: undefined,
-        description: "Financier, money laundering",
-        phone: "+91-6655443322",
-        city: "Lucknow",
-      },
-      {
-        name: "Priya Verma",
-        alias: undefined,
-        description: "Real estate agent, front operations",
-        phone: "+91-5544332211",
-        city: "Lucknow",
-      },
-      {
-        name: "Mohan Lal",
-        alias: "Driver Mohan",
-        description: "Driver and transporter",
-        phone: "+91-4433221100",
-        city: "Kanpur",
-      },
-      {
-        name: "Pooja Gupta",
-        alias: undefined,
-        description: "Associate, Kanpur operations",
-        phone: "+91-3322110099",
-        city: "Kanpur",
-      },
-      {
-        name: "Arjun Patel",
-        alias: undefined,
-        description: "Local contact, Kanpur",
-        phone: "+91-2211009988",
-        city: "Kanpur",
-      },
-      {
-        name: "Nisha Saxena",
-        alias: undefined,
-        description: "Communications coordinator",
-        phone: "+91-1100998877",
-        city: "Varanasi",
-      },
-      {
-        name: "Sunita Devi",
-        alias: undefined,
-        description: "Associate, Varanasi operations",
-        phone: "+91-0099887766",
-        city: "Varanasi",
-      },
-    ];
-
-    const personIds: string[] = [];
-    for (const p of persons) {
-      const id = await ctx.db.insert("entities", {
-        entityType: "person",
-        name: p.name,
-        alias: p.alias,
-        description: p.description,
-        confidence: 0.75 + Math.random() * 0.2,
-        investigationId: invId,
-        documentId: docId,
-        phone: p.phone,
-        city: p.city,
+      // 2. Document
+      const documentId = await ctx.db.insert("documents", {
+        title: documentTitle,
+        content: documentContent,
+        fileType: "text",
+        investigationId,
+        userId,
+        processed: true,
         createdAt: now - 25 * 24 * 60 * 60 * 1000,
       });
-      personIds.push(id);
-    }
 
-    // === ORGANIZATIONS ===
-    const orgs = [
-      { name: "XYZ Logistics", organizationType: "Transportation" },
-      { name: "Sharma Trading Co.", organizationType: "Trading Front" },
-      { name: "Delhi Transport Union", organizationType: "Transport Union" },
-      { name: "Kanpur Steel Works", organizationType: "Manufacturing" },
-      { name: "Lucknow Real Estate Group", organizationType: "Real Estate" },
-    ];
+      // 3. Create entities and keep their IDs by name
+      const ids: Record<string, any> = {};
 
-    const orgIds: string[] = [];
-    for (const o of orgs) {
-      const id = await ctx.db.insert("entities", {
-        entityType: "organization",
-        name: o.name,
-        organizationType: o.organizationType,
-        confidence: 0.8,
-        investigationId: invId,
-        documentId: docId,
-        createdAt: now - 24 * 24 * 60 * 60 * 1000,
-      });
-      orgIds.push(id);
-    }
+      for (const entity of entities) {
+        const id = await ctx.db.insert("entities", {
+          ...entity,
+          investigationId,
+          documentId,
+          createdAt: now - 20 * 24 * 60 * 60 * 1000,
+        });
 
-    // === LOCATIONS ===
-    const locs = [
-      { name: "Lucknow", city: "Lucknow", district: "Lucknow", state: "Uttar Pradesh" },
-      { name: "Kanpur", city: "Kanpur", district: "Kanpur Nagar", state: "Uttar Pradesh" },
-      { name: "Noida", city: "Noida", district: "Gautam Buddh Nagar", state: "Uttar Pradesh" },
-      { name: "Varanasi", city: "Varanasi", district: "Varanasi", state: "Uttar Pradesh" },
-      { name: "Agra", city: "Agra", district: "Agra", state: "Uttar Pradesh" },
-      { name: "Prayagraj", city: "Prayagraj", district: "Prayagraj", state: "Uttar Pradesh" },
-      { name: "Meerut", city: "Meerut", district: "Meerut", state: "Uttar Pradesh" },
-      { name: "Gorakhpur", city: "Gorakhpur", district: "Gorakhpur", state: "Uttar Pradesh" },
-    ];
-
-    const locIds: string[] = [];
-    for (const l of locs) {
-      const id = await ctx.db.insert("entities", {
-        entityType: "location",
-        name: l.name,
-        city: l.city,
-        district: l.district,
-        state: l.state,
-        confidence: 0.95,
-        investigationId: invId,
-        createdAt: now - 23 * 24 * 60 * 60 * 1000,
-      });
-      locIds.push(id);
-    }
-
-    // === VEHICLES ===
-    const vehicles = [
-      { name: "UP32AB1234", registrationNumber: "UP32AB1234", vehicleType: "SUV", vehicleMake: "Toyota Innova" },
-      { name: "UP65CD5678", registrationNumber: "UP65CD5678", vehicleType: "SUV", vehicleMake: "Mahindra Scorpio" },
-      { name: "UP14EF9012", registrationNumber: "UP14EF9012", vehicleType: "Sedan", vehicleMake: "Maruti Swift" },
-      { name: "UP32GH3456", registrationNumber: "UP32GH3456", vehicleType: "Sedan", vehicleMake: "Honda City" },
-    ];
-
-    const vehicleIds: string[] = [];
-    for (const v of vehicles) {
-      const id = await ctx.db.insert("entities", {
-        entityType: "vehicle",
-        name: v.name,
-        registrationNumber: v.registrationNumber,
-        vehicleType: v.vehicleType,
-        vehicleMake: v.vehicleMake,
-        confidence: 0.85,
-        investigationId: invId,
-        documentId: docId,
-        createdAt: now - 22 * 24 * 60 * 60 * 1000,
-      });
-      vehicleIds.push(id);
-    }
-
-    // === PHONES ===
-    const phones = [
-      "+91-9876543210",
-      "+91-9123456789",
-      "+91-9988776655",
-      "+91-8877665544",
-      "+91-7766554433",
-    ];
-
-    const phoneIds: string[] = [];
-    for (const p of phones) {
-      const id = await ctx.db.insert("entities", {
-        entityType: "phone",
-        name: p,
-        phone: p,
-        confidence: 0.9,
-        investigationId: invId,
-        documentId: docId,
-        createdAt: now - 21 * 24 * 60 * 60 * 1000,
-      });
-      phoneIds.push(id);
-    }
-
-    // === CASES ===
-    const casesData = [
-      {
-        name: "FIR/2024/001234",
-        firNumber: "FIR/2024/001234",
-        policeStation: "Hazratganj PS, Lucknow",
-        sections: "IPC 302, 307, 120B, NDPS Act 20",
-        description: "Drug trafficking and criminal conspiracy",
-        caseDate: now - 60 * 24 * 60 * 60 * 1000,
-      },
-      {
-        name: "FIR/2024/005678",
-        firNumber: "FIR/2024/005678",
-        policeStation: "Kotwali, Kanpur",
-        sections: "IPC 420, 467, 468, 120B",
-        description: "Money laundering and fraud",
-        caseDate: now - 45 * 24 * 60 * 60 * 1000,
-      },
-      {
-        name: "FIR/2024/009012",
-        firNumber: "FIR/2024/009012",
-        policeStation: "Sector 20 PS, Noida",
-        sections: "IPC 395, 397, 120B",
-        description: "Armed robbery and organized crime",
-        caseDate: now - 30 * 24 * 60 * 60 * 1000,
-      },
-    ];
-
-    const caseIds: string[] = [];
-    for (const c of casesData) {
-      const id = await ctx.db.insert("entities", {
-        entityType: "case",
-        name: c.name,
-        firNumber: c.firNumber,
-        policeStation: c.policeStation,
-        sections: c.sections,
-        description: c.description,
-        caseDate: c.caseDate,
-        confidence: 0.95,
-        investigationId: invId,
-        createdAt: now - 20 * 24 * 60 * 60 * 1000,
-      });
-      caseIds.push(id);
-    }
-
-    // === EVENTS ===
-    const eventsData = [
-      {
-        name: "Meeting at Lucknow Safe House",
-        eventDate: now - 55 * 24 * 60 * 60 * 1000,
-        eventLocation: "Safe House, Aliganj, Lucknow",
-        description: "Strategic meeting of network leaders",
-      },
-      {
-        name: "Shipment Transfer at Kanpur",
-        eventDate: now - 40 * 24 * 60 * 60 * 1000,
-        eventLocation: "Kanpur Steel Works Yard",
-        description: "Large shipment transfer operation",
-      },
-      {
-        name: "Cash Transfer at Noida",
-        eventDate: now - 25 * 24 * 60 * 60 * 1000,
-        eventLocation: "Sector 62, Noida",
-        description: "Cash handoff between cells",
-      },
-      {
-        name: "Planning Meeting at Varanasi",
-        eventDate: now - 15 * 24 * 60 * 60 * 1000,
-        eventLocation: "Assi Ghat, Varanasi",
-        description: "Planning for new operations",
-      },
-    ];
-
-    const eventIds: string[] = [];
-    for (const e of eventsData) {
-      const id = await ctx.db.insert("entities", {
-        entityType: "event",
-        name: e.name,
-        eventDate: e.eventDate,
-        eventLocation: e.eventLocation,
-        description: e.description,
-        confidence: 0.7,
-        investigationId: invId,
-        createdAt: now - 15 * 24 * 60 * 60 * 1000,
-      });
-      eventIds.push(id);
-    }
-
-    // === RELATIONSHIPS ===
-    const rels: Array<{
-      srcIdx: number;
-      srcType: string;
-      tgtIdx: number;
-      tgtType: string;
-      relType: string;
-      conf: number;
-    }> = [
-      // Person-Person
-      { srcIdx: 0, srcType: "person", tgtIdx: 1, tgtType: "person", relType: "communicated_with", conf: 0.92 },
-      { srcIdx: 0, srcType: "person", tgtIdx: 2, tgtType: "person", relType: "communicated_with", conf: 0.85 },
-      { srcIdx: 0, srcType: "person", tgtIdx: 3, tgtType: "person", relType: "associated_with", conf: 0.88 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 2, tgtType: "person", relType: "communicated_with", conf: 0.82 },
-      { srcIdx: 3, srcType: "person", tgtIdx: 4, tgtType: "person", relType: "associated_with", conf: 0.90 },
-      { srcIdx: 5, srcType: "person", tgtIdx: 6, tgtType: "person", relType: "communicated_with", conf: 0.78 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 8, tgtType: "person", relType: "associated_with", conf: 0.75 },
-      { srcIdx: 8, srcType: "person", tgtIdx: 9, tgtType: "person", relType: "communicated_with", conf: 0.80 },
-      { srcIdx: 10, srcType: "person", tgtIdx: 11, tgtType: "person", relType: "associated_with", conf: 0.72 },
-      { srcIdx: 0, srcType: "person", tgtIdx: 7, tgtType: "person", relType: "associated_with", conf: 0.70 },
-      { srcIdx: 5, srcType: "person", tgtIdx: 10, tgtType: "person", relType: "communicated_with", conf: 0.68 },
-      { srcIdx: 6, srcType: "person", tgtIdx: 5, tgtType: "person", relType: "connected_to", conf: 0.65 },
-      // Person-Org
-      { srcIdx: 0, srcType: "person", tgtIdx: 0, tgtType: "org", relType: "associated_with", conf: 0.88 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 0, tgtType: "org", relType: "associated_with", conf: 0.82 },
-      { srcIdx: 2, srcType: "person", tgtIdx: 1, tgtType: "org", relType: "associated_with", conf: 0.75 },
-      { srcIdx: 3, srcType: "person", tgtIdx: 3, tgtType: "org", relType: "associated_with", conf: 0.80 },
-      { srcIdx: 6, srcType: "person", tgtIdx: 4, tgtType: "org", relType: "associated_with", conf: 0.85 },
-      { srcIdx: 0, srcType: "person", tgtIdx: 2, tgtType: "org", relType: "associated_with", conf: 0.60 },
-      // Person-Phone
-      { srcIdx: 0, srcType: "person", tgtIdx: 0, tgtType: "phone", relType: "uses", conf: 0.95 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 1, tgtType: "phone", relType: "uses", conf: 0.93 },
-      { srcIdx: 2, srcType: "person", tgtIdx: 2, tgtType: "phone", relType: "uses", conf: 0.90 },
-      { srcIdx: 3, srcType: "person", tgtIdx: 3, tgtType: "phone", relType: "uses", conf: 0.92 },
-      { srcIdx: 4, srcType: "person", tgtIdx: 4, tgtType: "phone", relType: "uses", conf: 0.88 },
-      // Person-Vehicle
-      { srcIdx: 0, srcType: "person", tgtIdx: 0, tgtType: "vehicle", relType: "owns", conf: 0.85 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 1, tgtType: "vehicle", relType: "owns", conf: 0.80 },
-      { srcIdx: 7, srcType: "person", tgtIdx: 2, tgtType: "vehicle", relType: "uses", conf: 0.78 },
-      { srcIdx: 3, srcType: "person", tgtIdx: 3, tgtType: "vehicle", relType: "uses", conf: 0.72 },
-      // Person-Location
-      { srcIdx: 0, srcType: "person", tgtIdx: 0, tgtType: "loc", relType: "visited", conf: 0.90 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 1, tgtType: "loc", relType: "visited", conf: 0.88 },
-      { srcIdx: 3, srcType: "person", tgtIdx: 2, tgtType: "loc", relType: "visited", conf: 0.85 },
-      { srcIdx: 10, srcType: "person", tgtIdx: 3, tgtType: "loc", relType: "visited", conf: 0.82 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 0, tgtType: "loc", relType: "visited", conf: 0.75 },
-      { srcIdx: 0, srcType: "person", tgtIdx: 2, tgtType: "loc", relType: "visited", conf: 0.70 },
-      // Person-Case
-      { srcIdx: 0, srcType: "person", tgtIdx: 0, tgtType: "case", relType: "involved_in", conf: 0.90 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 0, tgtType: "case", relType: "involved_in", conf: 0.85 },
-      { srcIdx: 2, srcType: "person", tgtIdx: 1, tgtType: "case", relType: "involved_in", conf: 0.80 },
-      { srcIdx: 3, srcType: "person", tgtIdx: 2, tgtType: "case", relType: "involved_in", conf: 0.82 },
-      { srcIdx: 4, srcType: "person", tgtIdx: 2, tgtType: "case", relType: "involved_in", conf: 0.78 },
-      // Person-Event
-      { srcIdx: 0, srcType: "person", tgtIdx: 0, tgtType: "event", relType: "participated_in", conf: 0.88 },
-      { srcIdx: 1, srcType: "person", tgtIdx: 0, tgtType: "event", relType: "participated_in", conf: 0.85 },
-      { srcIdx: 5, srcType: "person", tgtIdx: 2, tgtType: "event", relType: "participated_in", conf: 0.80 },
-      { srcIdx: 6, srcType: "person", tgtIdx: 2, tgtType: "event", relType: "participated_in", conf: 0.75 },
-      { srcIdx: 0, srcType: "person", tgtIdx: 3, tgtType: "event", relType: "participated_in", conf: 0.72 },
-      // Org-Location
-      { srcIdx: 0, srcType: "org", tgtIdx: 0, tgtType: "loc", relType: "operates_in", conf: 0.90 },
-      { srcIdx: 1, srcType: "org", tgtIdx: 1, tgtType: "loc", relType: "operates_in", conf: 0.85 },
-      { srcIdx: 3, srcType: "org", tgtIdx: 1, tgtType: "loc", relType: "operates_in", conf: 0.80 },
-      { srcIdx: 4, srcType: "org", tgtIdx: 0, tgtType: "loc", relType: "operates_in", conf: 0.88 },
-      // Case-Location
-      { srcIdx: 0, srcType: "case", tgtIdx: 0, tgtType: "loc", relType: "occurred_at", conf: 0.95 },
-      { srcIdx: 1, srcType: "case", tgtIdx: 1, tgtType: "loc", relType: "occurred_at", conf: 0.92 },
-      { srcIdx: 2, srcType: "case", tgtIdx: 2, tgtType: "loc", relType: "occurred_at", conf: 0.90 },
-    ];
-
-    // Map indices to actual IDs
-    const getTypeArray = (type: string, idx: number) => {
-      switch (type) {
-        case "person": return personIds[idx];
-        case "org": return orgIds[idx];
-        case "loc": return locIds[idx];
-        case "vehicle": return vehicleIds[idx];
-        case "phone": return phoneIds[idx];
-        case "case": return caseIds[idx];
-        case "event": return eventIds[idx];
-        default: return personIds[0];
+        ids[entity.key] = id;
       }
+
+      // 4. Create relationships
+      for (const relationship of relationships) {
+        await ctx.db.insert("relationships", {
+          sourceId: ids[relationship.source],
+          targetId: ids[relationship.target],
+          relationshipType: relationship.type,
+          confidence: relationship.confidence,
+          investigationId,
+          documentId,
+          createdAt: now - 15 * 24 * 60 * 60 * 1000,
+        });
+      }
+
+      return {
+        investigationId,
+        entityCount: entities.length,
+        relationshipCount: relationships.length,
+      };
     };
 
-    for (const r of rels) {
-      await ctx.db.insert("relationships", {
-        sourceId: getTypeArray(r.srcType, r.srcIdx) as any,
-        targetId: getTypeArray(r.tgtType, r.tgtIdx) as any,
-        relationshipType: r.relType,
-        confidence: r.conf,
-        investigationId: invId,
-        documentId: docId,
-        createdAt: now - 20 * 24 * 60 * 60 * 1000,
-      });
-    }
+    // =========================================================
+    // INVESTIGATION 1
+    // OPERATION BLACK NET — INTERSTATE SMUGGLING
+    // =========================================================
 
-    // Audit log
+    const blackNet = await createInvestigation({
+      title: "Operation Black Net — Interstate Smuggling Network",
+      description:
+        "Investigation into an interstate smuggling network operating across Lucknow, Kanpur and Noida.",
+      priority: "high",
+
+      documentTitle: "Intelligence Report — Operation Black Net",
+
+      documentContent:
+        "Synthetic intelligence report describing suspected coordination between multiple individuals, transport organizations, vehicles and locations.",
+
+      entities: [
+        // PERSONS
+        {
+          key: "vikram",
+          entityType: "person",
+          name: "Vikram Singh",
+          alias: "Vicky",
+          description: "Suspected network coordinator",
+          phone: "+91-9000001001",
+          city: "Lucknow",
+          confidence: 0.91,
+        },
+        {
+          key: "rajesh",
+          entityType: "person",
+          name: "Rajesh Kumar",
+          alias: "Raju",
+          description: "Logistics coordinator",
+          phone: "+91-9000001002",
+          city: "Kanpur",
+          confidence: 0.87,
+        },
+        {
+          key: "sanjay",
+          entityType: "person",
+          name: "Sanjay Mishra",
+          alias: "Sanju",
+          description: "Regional coordinator",
+          phone: "+91-9000001003",
+          city: "Noida",
+          confidence: 0.84,
+        },
+        {
+          key: "deepak",
+          entityType: "person",
+          name: "Deepak Yadav",
+          alias: "DP",
+          description: "Field associate",
+          phone: "+91-9000001004",
+          city: "Noida",
+          confidence: 0.79,
+        },
+        {
+          key: "ravi",
+          entityType: "person",
+          name: "Ravi Tiwari",
+          description: "Financial intermediary",
+          phone: "+91-9000001005",
+          city: "Lucknow",
+          confidence: 0.76,
+        },
+
+        // ORGANIZATIONS
+        {
+          key: "xyz",
+          entityType: "organization",
+          name: "XYZ Logistics",
+          organizationType: "Transportation",
+          confidence: 0.88,
+        },
+        {
+          key: "sharma",
+          entityType: "organization",
+          name: "Sharma Trading Co.",
+          organizationType: "Trading Front",
+          confidence: 0.82,
+        },
+        {
+          key: "transport",
+          entityType: "organization",
+          name: "Delhi Transport Union",
+          organizationType: "Transport Network",
+          confidence: 0.74,
+        },
+
+        // LOCATIONS
+        {
+          key: "lucknow",
+          entityType: "location",
+          name: "Lucknow",
+          city: "Lucknow",
+          district: "Lucknow",
+          state: "Uttar Pradesh",
+          confidence: 0.96,
+        },
+        {
+          key: "kanpur",
+          entityType: "location",
+          name: "Kanpur",
+          city: "Kanpur",
+          district: "Kanpur Nagar",
+          state: "Uttar Pradesh",
+          confidence: 0.95,
+        },
+        {
+          key: "noida",
+          entityType: "location",
+          name: "Noida",
+          city: "Noida",
+          district: "Gautam Buddh Nagar",
+          state: "Uttar Pradesh",
+          confidence: 0.95,
+        },
+        {
+          key: "agra",
+          entityType: "location",
+          name: "Agra",
+          city: "Agra",
+          district: "Agra",
+          state: "Uttar Pradesh",
+          confidence: 0.91,
+        },
+
+        // VEHICLES
+        {
+          key: "vehicle1",
+          entityType: "vehicle",
+          name: "UP32AB1234",
+          registrationNumber: "UP32AB1234",
+          vehicleType: "SUV",
+          vehicleMake: "Toyota Innova",
+          confidence: 0.86,
+        },
+        {
+          key: "vehicle2",
+          entityType: "vehicle",
+          name: "UP65CD5678",
+          registrationNumber: "UP65CD5678",
+          vehicleType: "SUV",
+          vehicleMake: "Mahindra Scorpio",
+          confidence: 0.83,
+        },
+
+        // PHONES
+        {
+          key: "phone1",
+          entityType: "phone",
+          name: "+91-9000001001",
+          phone: "+91-9000001001",
+          confidence: 0.94,
+        },
+        {
+          key: "phone2",
+          entityType: "phone",
+          name: "+91-9000001002",
+          phone: "+91-9000001002",
+          confidence: 0.90,
+        },
+
+        // CASES
+        {
+          key: "case1",
+          entityType: "case",
+          name: "FIR/2026/00124",
+          firNumber: "FIR/2026/00124",
+          policeStation: "Hazratganj PS, Lucknow",
+          sections: "NDPS Act 20, 120B",
+          description: "Suspected interstate smuggling activity",
+          caseDate: now - 55 * 24 * 60 * 60 * 1000,
+          confidence: 0.95,
+        },
+        {
+          key: "case2",
+          entityType: "case",
+          name: "FIR/2026/00318",
+          firNumber: "FIR/2026/00318",
+          policeStation: "Kotwali PS, Kanpur",
+          sections: "IPC 420, 120B",
+          description: "Suspected logistics and financial coordination",
+          caseDate: now - 35 * 24 * 60 * 60 * 1000,
+          confidence: 0.92,
+        },
+
+        // EVENTS
+        {
+          key: "event1",
+          entityType: "event",
+          name: "Planning Meeting — Lucknow",
+          eventDate: now - 45 * 24 * 60 * 60 * 1000,
+          eventLocation: "Lucknow",
+          description: "Suspected coordination meeting",
+          confidence: 0.84,
+        },
+        {
+          key: "event2",
+          entityType: "event",
+          name: "Shipment Transfer — Kanpur",
+          eventDate: now - 28 * 24 * 60 * 60 * 1000,
+          eventLocation: "Kanpur",
+          description: "Suspected shipment transfer",
+          confidence: 0.88,
+        },
+      ],
+
+      relationships: [
+        { source: "vikram", target: "rajesh", type: "communicates_with", confidence: 0.91 },
+        { source: "rajesh", target: "xyz", type: "associated_with", confidence: 0.86 },
+        { source: "sanjay", target: "deepak", type: "directs", confidence: 0.89 },
+        { source: "vikram", target: "sharma", type: "associated_with", confidence: 0.78 },
+
+        { source: "vikram", target: "phone1", type: "uses", confidence: 0.94 },
+        { source: "rajesh", target: "phone2", type: "uses", confidence: 0.90 },
+
+        { source: "rajesh", target: "vehicle1", type: "uses", confidence: 0.83 },
+        { source: "sanjay", target: "vehicle2", type: "uses", confidence: 0.81 },
+
+        { source: "vikram", target: "lucknow", type: "located_in", confidence: 0.88 },
+        { source: "rajesh", target: "kanpur", type: "located_in", confidence: 0.87 },
+        { source: "sanjay", target: "noida", type: "located_in", confidence: 0.90 },
+
+        { source: "xyz", target: "kanpur", type: "operates_in", confidence: 0.85 },
+        { source: "sharma", target: "lucknow", type: "operates_in", confidence: 0.80 },
+
+        { source: "vikram", target: "case1", type: "involved_in", confidence: 0.82 },
+        { source: "rajesh", target: "case2", type: "involved_in", confidence: 0.79 },
+
+        { source: "vikram", target: "event1", type: "participated_in", confidence: 0.87 },
+        { source: "rajesh", target: "event2", type: "participated_in", confidence: 0.88 },
+
+        { source: "case1", target: "lucknow", type: "occurred_at", confidence: 0.95 },
+        { source: "case2", target: "kanpur", type: "occurred_at", confidence: 0.94 },
+      ],
+    });
+
+    // =========================================================
+    // INVESTIGATION 2
+    // OPERATION SILENT LEDGER — FINANCIAL FRAUD
+    // =========================================================
+
+    const silentLedger = await createInvestigation({
+      title: "Operation Silent Ledger — Financial Fraud",
+      description:
+        "Investigation into a suspected financial fraud network involving shell businesses and coordinated transactions.",
+      priority: "high",
+
+      documentTitle: "Financial Intelligence Report — Silent Ledger",
+
+      documentContent:
+        "Synthetic financial intelligence report describing relationships between individuals, businesses, accounts and transaction locations.",
+
+      entities: [
+        {
+          key: "anil",
+          entityType: "person",
+          name: "Anil Mehta",
+          alias: "AM",
+          description: "Suspected financial coordinator",
+          phone: "+91-9000002001",
+          city: "Noida",
+          confidence: 0.90,
+        },
+        {
+          key: "neha",
+          entityType: "person",
+          name: "Neha Kapoor",
+          description: "Accounts intermediary",
+          phone: "+91-9000002002",
+          city: "Delhi",
+          confidence: 0.83,
+        },
+        {
+          key: "rohit",
+          entityType: "person",
+          name: "Rohit Bansal",
+          description: "Business intermediary",
+          phone: "+91-9000002003",
+          city: "Ghaziabad",
+          confidence: 0.78,
+        },
+        {
+          key: "fin1",
+          entityType: "organization",
+          name: "Meridian Exports",
+          organizationType: "Import / Export",
+          confidence: 0.86,
+        },
+        {
+          key: "fin2",
+          entityType: "organization",
+          name: "North Star Consultancy",
+          organizationType: "Consulting",
+          confidence: 0.81,
+        },
+        {
+          key: "loc1",
+          entityType: "location",
+          name: "Noida",
+          city: "Noida",
+          district: "Gautam Buddh Nagar",
+          state: "Uttar Pradesh",
+          confidence: 0.95,
+        },
+        {
+          key: "loc2",
+          entityType: "location",
+          name: "Ghaziabad",
+          city: "Ghaziabad",
+          district: "Ghaziabad",
+          state: "Uttar Pradesh",
+          confidence: 0.94,
+        },
+        {
+          key: "loc3",
+          entityType: "location",
+          name: "Delhi",
+          city: "Delhi",
+          district: "New Delhi",
+          state: "Delhi",
+          confidence: 0.95,
+        },
+        {
+          key: "phone1",
+          entityType: "phone",
+          name: "+91-9000002001",
+          phone: "+91-9000002001",
+          confidence: 0.92,
+        },
+        {
+          key: "phone2",
+          entityType: "phone",
+          name: "+91-9000002002",
+          phone: "+91-9000002002",
+          confidence: 0.89,
+        },
+        {
+          key: "case1",
+          entityType: "case",
+          name: "FIR/2026/00451",
+          firNumber: "FIR/2026/00451",
+          policeStation: "Sector 20 PS, Noida",
+          sections: "IPC 420, 467, 468",
+          description: "Suspected financial fraud",
+          caseDate: now - 50 * 24 * 60 * 60 * 1000,
+          confidence: 0.94,
+        },
+        {
+          key: "case2",
+          entityType: "case",
+          name: "FIR/2026/00503",
+          firNumber: "FIR/2026/00503",
+          policeStation: "Indirapuram PS, Ghaziabad",
+          sections: "IPC 420, 120B",
+          description: "Suspected coordinated financial transactions",
+          caseDate: now - 22 * 24 * 60 * 60 * 1000,
+          confidence: 0.91,
+        },
+        {
+          key: "event1",
+          entityType: "event",
+          name: "Account Meeting — Noida",
+          eventDate: now - 31 * 24 * 60 * 60 * 1000,
+          eventLocation: "Noida",
+          description: "Meeting involving suspected financial intermediaries",
+          confidence: 0.82,
+        },
+      ],
+
+      relationships: [
+        { source: "anil", target: "neha", type: "communicates_with", confidence: 0.88 },
+        { source: "anil", target: "rohit", type: "associated_with", confidence: 0.81 },
+
+        { source: "anil", target: "fin1", type: "associated_with", confidence: 0.87 },
+        { source: "rohit", target: "fin2", type: "associated_with", confidence: 0.80 },
+
+        { source: "anil", target: "phone1", type: "uses", confidence: 0.92 },
+        { source: "neha", target: "phone2", type: "uses", confidence: 0.89 },
+
+        { source: "anil", target: "loc1", type: "located_in", confidence: 0.90 },
+        { source: "rohit", target: "loc2", type: "located_in", confidence: 0.84 },
+        { source: "neha", target: "loc3", type: "located_in", confidence: 0.86 },
+
+        { source: "fin1", target: "loc1", type: "operates_in", confidence: 0.88 },
+        { source: "fin2", target: "loc3", type: "operates_in", confidence: 0.83 },
+
+        { source: "anil", target: "case1", type: "involved_in", confidence: 0.85 },
+        { source: "rohit", target: "case2", type: "involved_in", confidence: 0.77 },
+
+        { source: "anil", target: "event1", type: "participated_in", confidence: 0.82 },
+
+        { source: "case1", target: "loc1", type: "occurred_at", confidence: 0.95 },
+        { source: "case2", target: "loc2", type: "occurred_at", confidence: 0.93 },
+      ],
+    });
+
+    // =========================================================
+    // INVESTIGATION 3
+    // OPERATION RED ROUTE — VEHICLE THEFT
+    // =========================================================
+
+    const redRoute = await createInvestigation({
+      title: "Operation Red Route — Vehicle Theft Network",
+      description:
+        "Investigation into a suspected vehicle theft and resale network operating between western Uttar Pradesh districts.",
+      priority: "medium",
+
+      documentTitle: "Vehicle Intelligence Report — Red Route",
+
+      documentContent:
+        "Synthetic report describing suspected vehicle theft, transport and resale connections.",
+
+      entities: [
+        {
+          key: "manoj",
+          entityType: "person",
+          name: "Manoj Chauhan",
+          alias: "MC",
+          description: "Suspected vehicle coordinator",
+          phone: "+91-9000003001",
+          city: "Meerut",
+          confidence: 0.88,
+        },
+        {
+          key: "faiz",
+          entityType: "person",
+          name: "Faiz Khan",
+          description: "Vehicle transporter",
+          phone: "+91-9000003002",
+          city: "Ghaziabad",
+          confidence: 0.82,
+        },
+        {
+          key: "suresh",
+          entityType: "person",
+          name: "Suresh Pal",
+          description: "Local associate",
+          phone: "+91-9000003003",
+          city: "Bulandshahr",
+          confidence: 0.76,
+        },
+
+        {
+          key: "org1",
+          entityType: "organization",
+          name: "Metro Auto Traders",
+          organizationType: "Used Vehicle Dealer",
+          confidence: 0.84,
+        },
+        {
+          key: "org2",
+          entityType: "organization",
+          name: "Western Transport Services",
+          organizationType: "Transport",
+          confidence: 0.79,
+        },
+
+        {
+          key: "meerut",
+          entityType: "location",
+          name: "Meerut",
+          city: "Meerut",
+          district: "Meerut",
+          state: "Uttar Pradesh",
+          confidence: 0.95,
+        },
+        {
+          key: "ghaziabad",
+          entityType: "location",
+          name: "Ghaziabad",
+          city: "Ghaziabad",
+          district: "Ghaziabad",
+          state: "Uttar Pradesh",
+          confidence: 0.94,
+        },
+        {
+          key: "buland",
+          entityType: "location",
+          name: "Bulandshahr",
+          city: "Bulandshahr",
+          district: "Bulandshahr",
+          state: "Uttar Pradesh",
+          confidence: 0.92,
+        },
+
+        {
+          key: "car1",
+          entityType: "vehicle",
+          name: "UP15XY4821",
+          registrationNumber: "UP15XY4821",
+          vehicleType: "SUV",
+          vehicleMake: "Hyundai Creta",
+          confidence: 0.88,
+        },
+        {
+          key: "car2",
+          entityType: "vehicle",
+          name: "UP14LM7312",
+          registrationNumber: "UP14LM7312",
+          vehicleType: "Sedan",
+          vehicleMake: "Honda City",
+          confidence: 0.84,
+        },
+        {
+          key: "car3",
+          entityType: "vehicle",
+          name: "UP16QR9054",
+          registrationNumber: "UP16QR9054",
+          vehicleType: "SUV",
+          vehicleMake: "Mahindra XUV",
+          confidence: 0.81,
+        },
+
+        {
+          key: "case1",
+          entityType: "case",
+          name: "FIR/2026/00671",
+          firNumber: "FIR/2026/00671",
+          policeStation: "Civil Lines PS, Meerut",
+          sections: "IPC 379, 411",
+          description: "Suspected vehicle theft",
+          caseDate: now - 40 * 24 * 60 * 60 * 1000,
+          confidence: 0.94,
+        },
+        {
+          key: "case2",
+          entityType: "case",
+          name: "FIR/2026/00702",
+          firNumber: "FIR/2026/00702",
+          policeStation: "Sihani Gate PS, Ghaziabad",
+          sections: "IPC 411, 414",
+          description: "Suspected stolen vehicle resale",
+          caseDate: now - 18 * 24 * 60 * 60 * 1000,
+          confidence: 0.91,
+        },
+
+        {
+          key: "event1",
+          entityType: "event",
+          name: "Vehicle Transfer — Ghaziabad",
+          eventDate: now - 20 * 24 * 60 * 60 * 1000,
+          eventLocation: "Ghaziabad",
+          description: "Suspected vehicle handover",
+          confidence: 0.86,
+        },
+      ],
+
+      relationships: [
+        { source: "manoj", target: "faiz", type: "communicates_with", confidence: 0.87 },
+        { source: "faiz", target: "suresh", type: "associated_with", confidence: 0.79 },
+
+        { source: "manoj", target: "org1", type: "associated_with", confidence: 0.82 },
+        { source: "faiz", target: "org2", type: "associated_with", confidence: 0.80 },
+
+        { source: "manoj", target: "car1", type: "linked_to", confidence: 0.89 },
+        { source: "faiz", target: "car2", type: "linked_to", confidence: 0.85 },
+        { source: "suresh", target: "car3", type: "linked_to", confidence: 0.78 },
+
+        { source: "manoj", target: "meerut", type: "located_in", confidence: 0.90 },
+        { source: "faiz", target: "ghaziabad", type: "located_in", confidence: 0.86 },
+        { source: "suresh", target: "buland", type: "located_in", confidence: 0.82 },
+
+        { source: "org1", target: "ghaziabad", type: "operates_in", confidence: 0.83 },
+        { source: "org2", target: "meerut", type: "operates_in", confidence: 0.81 },
+
+        { source: "manoj", target: "case1", type: "involved_in", confidence: 0.84 },
+        { source: "faiz", target: "case2", type: "involved_in", confidence: 0.80 },
+
+        { source: "faiz", target: "event1", type: "participated_in", confidence: 0.86 },
+
+        { source: "case1", target: "meerut", type: "occurred_at", confidence: 0.95 },
+        { source: "case2", target: "ghaziabad", type: "occurred_at", confidence: 0.94 },
+      ],
+    });
+
+    // =========================================================
+    // INVESTIGATION 4
+    // OPERATION SHADOW CALL — ORGANIZED EXTORTION
+    // =========================================================
+
+    const shadowCall = await createInvestigation({
+      title: "Operation Shadow Call — Organized Extortion",
+      description:
+        "Investigation into a suspected coordinated extortion network using multiple communication channels.",
+      priority: "critical",
+
+      documentTitle: "Communications Intelligence — Shadow Call",
+
+      documentContent:
+        "Synthetic communications intelligence report describing suspected extortion coordination.",
+
+      entities: [
+        {
+          key: "karan",
+          entityType: "person",
+          name: "Karan Malhotra",
+          alias: "KM",
+          description: "Suspected coordinator",
+          phone: "+91-9000004001",
+          city: "Varanasi",
+          confidence: 0.89,
+        },
+        {
+          key: "pooja",
+          entityType: "person",
+          name: "Pooja Arora",
+          description: "Communications intermediary",
+          phone: "+91-9000004002",
+          city: "Prayagraj",
+          confidence: 0.81,
+        },
+        {
+          key: "imran",
+          entityType: "person",
+          name: "Imran Sheikh",
+          description: "Local associate",
+          phone: "+91-9000004003",
+          city: "Varanasi",
+          confidence: 0.77,
+        },
+        {
+          key: "naveen",
+          entityType: "person",
+          name: "Naveen Joshi",
+          description: "Financial intermediary",
+          phone: "+91-9000004004",
+          city: "Prayagraj",
+          confidence: 0.74,
+        },
+
+        {
+          key: "org1",
+          entityType: "organization",
+          name: "Eastern Business Forum",
+          organizationType: "Business Association",
+          confidence: 0.72,
+        },
+        {
+          key: "org2",
+          entityType: "organization",
+          name: "Ganga Event Services",
+          organizationType: "Event Services",
+          confidence: 0.76,
+        },
+
+        {
+          key: "varanasi",
+          entityType: "location",
+          name: "Varanasi",
+          city: "Varanasi",
+          district: "Varanasi",
+          state: "Uttar Pradesh",
+          confidence: 0.96,
+        },
+        {
+          key: "prayagraj",
+          entityType: "location",
+          name: "Prayagraj",
+          city: "Prayagraj",
+          district: "Prayagraj",
+          state: "Uttar Pradesh",
+          confidence: 0.95,
+        },
+        {
+          key: "gorakhpur",
+          entityType: "location",
+          name: "Gorakhpur",
+          city: "Gorakhpur",
+          district: "Gorakhpur",
+          state: "Uttar Pradesh",
+          confidence: 0.92,
+        },
+
+        {
+          key: "phone1",
+          entityType: "phone",
+          name: "+91-9000004001",
+          phone: "+91-9000004001",
+          confidence: 0.92,
+        },
+        {
+          key: "phone2",
+          entityType: "phone",
+          name: "+91-9000004002",
+          phone: "+91-9000004002",
+          confidence: 0.87,
+        },
+        {
+          key: "phone3",
+          entityType: "phone",
+          name: "+91-9000004003",
+          phone: "+91-9000004003",
+          confidence: 0.84,
+        },
+
+        {
+          key: "case1",
+          entityType: "case",
+          name: "FIR/2026/00814",
+          firNumber: "FIR/2026/00814",
+          policeStation: "Lanka PS, Varanasi",
+          sections: "IPC 384, 120B",
+          description: "Suspected coordinated extortion",
+          caseDate: now - 48 * 24 * 60 * 60 * 1000,
+          confidence: 0.93,
+        },
+        {
+          key: "case2",
+          entityType: "case",
+          name: "FIR/2026/00839",
+          firNumber: "FIR/2026/00839",
+          policeStation: "Civil Lines PS, Prayagraj",
+          sections: "IPC 384, 506",
+          description: "Suspected intimidation and extortion",
+          caseDate: now - 16 * 24 * 60 * 60 * 1000,
+          confidence: 0.90,
+        },
+
+        {
+          key: "event1",
+          entityType: "event",
+          name: "Meeting — Varanasi",
+          eventDate: now - 35 * 24 * 60 * 60 * 1000,
+          eventLocation: "Varanasi",
+          description: "Suspected network meeting",
+          confidence: 0.83,
+        },
+        {
+          key: "event2",
+          entityType: "event",
+          name: "Communication Session — Prayagraj",
+          eventDate: now - 12 * 24 * 60 * 60 * 1000,
+          eventLocation: "Prayagraj",
+          description: "Suspected coordination session",
+          confidence: 0.80,
+        },
+      ],
+
+      relationships: [
+        { source: "karan", target: "pooja", type: "communicates_with", confidence: 0.90 },
+        { source: "karan", target: "imran", type: "directs", confidence: 0.86 },
+        { source: "pooja", target: "naveen", type: "communicates_with", confidence: 0.82 },
+
+        { source: "karan", target: "org1", type: "associated_with", confidence: 0.76 },
+        { source: "naveen", target: "org2", type: "associated_with", confidence: 0.78 },
+
+        { source: "karan", target: "phone1", type: "uses", confidence: 0.92 },
+        { source: "pooja", target: "phone2", type: "uses", confidence: 0.87 },
+        { source: "imran", target: "phone3", type: "uses", confidence: 0.84 },
+
+        { source: "karan", target: "varanasi", type: "located_in", confidence: 0.91 },
+        { source: "pooja", target: "prayagraj", type: "located_in", confidence: 0.86 },
+        { source: "imran", target: "varanasi", type: "located_in", confidence: 0.84 },
+
+        { source: "org1", target: "varanasi", type: "operates_in", confidence: 0.78 },
+        { source: "org2", target: "prayagraj", type: "operates_in", confidence: 0.81 },
+
+        { source: "karan", target: "case1", type: "involved_in", confidence: 0.83 },
+        { source: "naveen", target: "case2", type: "involved_in", confidence: 0.76 },
+
+        { source: "karan", target: "event1", type: "participated_in", confidence: 0.87 },
+        { source: "pooja", target: "event2", type: "participated_in", confidence: 0.81 },
+
+        { source: "case1", target: "varanasi", type: "occurred_at", confidence: 0.95 },
+        { source: "case2", target: "prayagraj", type: "occurred_at", confidence: 0.94 },
+      ],
+    });
+
+    // =========================================================
+    // AUDIT LOG
+    // =========================================================
+
     await ctx.db.insert("auditLogs", {
       action: "demo_data_loaded",
       entityType: "system",
-      details: "SYNTHETIC DEMO DATA loaded: 12 persons, 5 organizations, 8 locations, 4 vehicles, 5 phones, 3 cases, 4 events, 48 relationships",
+      details:
+        "SYNTHETIC DEMO DATA loaded: 4 investigations with separate investigation networks.",
       userId,
       createdAt: now,
     });
 
     return {
-      investigationId: invId,
-      entities: persons.length + orgs.length + locs.length + vehicles.length + phones.length + casesData.length + eventsData.length,
-      relationships: rels.length,
+      investigations: 4,
+      totalEntities:
+        blackNet.entityCount +
+        silentLedger.entityCount +
+        redRoute.entityCount +
+        shadowCall.entityCount,
+      totalRelationships:
+        blackNet.relationshipCount +
+        silentLedger.relationshipCount +
+        redRoute.relationshipCount +
+        shadowCall.relationshipCount,
     };
   },
 });
